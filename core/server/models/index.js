@@ -21,6 +21,7 @@ models = [
     'app',
     'client-trusted-domain',
     'client',
+    'detention-center',
     'permission',
     'post',
     'refreshtoken',

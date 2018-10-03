@@ -11,7 +11,7 @@ const Promise = require('bluebird'),
      * @deprecated: `author`, will be removed in Ghost 3.0
      */
     allowedIncludes = [
-        'created_by', 'updated_by', 'published_by', 'author', 'tags', 'fields', 'authors', 'authors.roles'
+        'created_by', 'updated_by', 'published_by', 'author', 'tags', 'detentionCenters', 'fields', 'authors', 'authors.roles'
     ],
     unsafeAttrs = ['author_id', 'status', 'authors'];
 

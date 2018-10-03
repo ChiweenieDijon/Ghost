@@ -17,6 +17,7 @@ const {isEmpty} = require('lodash'),
     roles = require('./roles'),
     settings = require('./settings'),
     tags = require('./tags'),
+    detentionCenters = require('./detentionCenters'),
     invites = require('./invites'),
     redirects = require('./redirects'),
     clients = require('./clients'),
@@ -265,7 +266,7 @@ addHeaders = (apiMethod, req, res, result) => {
  * @return {Function} middleware format function to be called by the route when a matching request is made
  */
 http = (apiMethod) => {
-    return function apiHandler(req, res, next) {
+    return function apiHandler(req, res, next) {                
         // We define 2 properties for using as arguments in API calls:
         let object = req.body,
             options = Object.assign({}, req.file, {ip: req.ip}, req.query, req.params, {
@@ -332,6 +333,7 @@ module.exports = {
     roles: roles,
     settings: settings,
     tags: tags,
+    detentionCenters:detentionCenters,
     clients: clients,
     users: users,
     slugs: slugs,

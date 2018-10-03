@@ -78,10 +78,21 @@ module.exports = {
         updated_at: {type: 'dateTime', nullable: true},
         updated_by: {type: 'string', maxlength: 24, nullable: true}
     },
+    detention_centers: {
+        id: {type: 'string', maxlength: 24, nullable: false, primary: true},
+        _id: {type: 'string', maxlength: 191, nullable: false},
+        name: {type: 'string', maxlength: 500, nullable: false}
+    },
     posts_authors: {
         id: {type: 'string', maxlength: 24, nullable: false, primary: true},
         post_id: {type: 'string', maxlength: 24, nullable: false, references: 'posts.id'},
         author_id: {type: 'string', maxlength: 24, nullable: false, references: 'users.id'},
+        sort_order: {type: 'integer', nullable: false, unsigned: true, defaultTo: 0}
+    },
+    posts_detention_centers: {
+        id: {type: 'string', maxlength: 24, nullable: false, primary: true},
+        post_id: {type: 'string', maxlength: 24, nullable: false, references: 'posts.id'},
+        detention_center_id: {type: 'string', maxlength: 24, nullable: false, references: 'detention_centers.id'},
         sort_order: {type: 'integer', nullable: false, unsigned: true, defaultTo: 0}
     },
     roles: {
