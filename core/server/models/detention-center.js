@@ -5,12 +5,12 @@ let DetentionCenter, DetentionCenters;
 
 DetentionCenter = ghostBookshelf.Model.extend({
 
-    tableName: 'detention_centers',
+    tableName: 'detention_centers'
 
-
+/*
     posts: function posts() {
         return this.belongsToMany('Post');
-    },
+    }*/
 
 }, {
     orderDefaultOptions: function orderDefaultOptions() {
