@@ -57,6 +57,10 @@ posts = {
          * @returns {Object} options
          */
         function modelQuery(options) {
+            if(options && options.withRelated) {
+                //Theres some issue w/ include parameter being "detentionCenters" not translating to the withRelated
+                options.withRelated.push('detention_centers');
+            }
             return models.Post.findPage(options);
         }
 
