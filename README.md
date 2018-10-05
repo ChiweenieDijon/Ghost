@@ -1,3 +1,15 @@
+This is a fork of the Ghost blogging software project, the purpose of which was to add a custom field (referencing a new custom object in a many-to-many relationship) to the blog post.
+
+Doing so was a huge pain in the ass, but by the grace of god I finally got it working. (At least in development mode.)  Perhaps if someone wants to do the same, they might find this repo via search engine.
+
+I had to mess with model objects, data schema, and the API on the server side, and make corresponding changes to ember model objects and the form on the client side.
+
+The client side resides in a separate repo as a submodule: https://github.com/ChiweenieDijon/Ghost-Admin
+
+To see the details, look at my commits to the detention_center branch in both projects.
+
+Good luck.
+
 &nbsp;
 <p align="center">
   <a href="https://ghost.org">
