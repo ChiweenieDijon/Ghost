@@ -3,11 +3,11 @@
 const Promise = require('bluebird'),
     _ = require('lodash'),
     fs = require('fs-extra'),
-    pipeline = require('../lib/promise/pipeline'),
-    fsLib = require('../lib/fs'),
+    pipeline = require('../../lib/promise/pipeline'),
+    fsLib = require('../../lib/fs'),
     localUtils = require('./utils'),
-    models = require('../models'),
-    common = require('../lib/common'),
+    models = require('../../models'),
+    common = require('../../lib/common'),
     docName = 'subscribers';
 
 let subscribers;
@@ -33,7 +33,13 @@ subscribers = {
          * @returns {Object} options
          */
         function doQuery(options) {
-            return models.Subscriber.findPage(options);
+            return models.Subscriber.findPage(options)
+                .then(({data, meta}) => {
+                    return {
+                        subscribers: data.map(model => model.toJSON(options)),
+                        meta: meta
+                    };
+                });
         }
 
         // Push all of our tasks into a `tasks` array in the correct order

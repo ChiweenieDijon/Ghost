@@ -2,10 +2,10 @@
 // RESTful API for the Tag resource
 const Promise = require('bluebird'),
     _ = require('lodash'),
-    pipeline = require('../lib/promise/pipeline'),
+    pipeline = require('../../lib/promise/pipeline'),
     localUtils = require('./utils'),
-    models = require('../models'),
-    common = require('../lib/common'),
+    models = require('../../models'),
+    common = require('../../lib/common'),
     docName = 'tags',
     allowedIncludes = ['count.posts'];
 
@@ -33,7 +33,13 @@ tags = {
          * @returns {Object} options
          */
         function doQuery(options) {
-            return models.Tag.findPage(options);
+            return models.Tag.findPage(options)
+                .then(({data, meta}) => {
+                    return {
+                        tags: data.map(model => model.toJSON(options)),
+                        meta: meta
+                    };
+                });
         }
 
         // Push all of our tasks into a `tasks` array in the correct order
