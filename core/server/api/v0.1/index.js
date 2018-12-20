@@ -323,6 +323,7 @@ module.exports = {
     roles: roles,
     settings: settings,
     tags: tags,
+    detentionCenters:detentionCenters,
     clients: clients,
     users: users,
     slugs: slugs,

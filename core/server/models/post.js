@@ -48,12 +48,13 @@ Post = ghostBookshelf.Model.extend({
         };
     },
 
-    relationships: ['tags', 'authors'],
+    relationships: ['tags', 'authors', 'detention_centers'],
 
     // NOTE: look up object, not super nice, but was easy to implement
     relationshipBelongsTo: {
         tags: 'tags',
-        authors: 'users'
+        authors: 'users',
+        detention_centers:'detention_centers'
     },
 
     /**
@@ -373,6 +374,12 @@ Post = ghostBookshelf.Model.extend({
 
     authors: function authors() {
         return this.belongsToMany('User', 'posts_authors', 'post_id', 'author_id')
+            .withPivot('sort_order')
+            .query('orderBy', 'sort_order', 'ASC');
+    },
+    
+    detention_centers: function detentionCenters() {
+        return this.belongsToMany('DetentionCenter', 'posts_detention_centers', 'post_id', 'detention_center_id')
             .withPivot('sort_order')
             .query('orderBy', 'sort_order', 'ASC');
     },

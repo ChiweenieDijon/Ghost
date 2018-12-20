@@ -80,6 +80,10 @@ module.exports = function apiRoutes() {
     apiRouter.post('/tags', mw.authenticatePrivate, api.http(api.tags.add));
     apiRouter.put('/tags/:id', mw.authenticatePrivate, api.http(api.tags.edit));
     apiRouter.del('/tags/:id', mw.authenticatePrivate, api.http(api.tags.destroy));
+    
+    // ## DetentionCenters
+    apiRouter.get('/detentionCenters', mw.authenticatePublic, api.http(api.detentionCenters.browse));
+    apiRouter.get('/detentionCenters/:id', mw.authenticatePublic, api.http(api.detentionCenters.read));
 
     // ## Subscribers
     apiRouter.get('/subscribers', labs.subscribers, mw.authenticatePrivate, api.http(api.subscribers.browse));

@@ -1045,6 +1045,19 @@ ghostBookshelf.Model = ghostBookshelf.Model.extend({
                     whereIn: 'posts_authors.post_id',
                     whereInKey: 'post_id',
                     orderBy: 'sort_order'
+                },
+                
+                detention_centers:{
+                    targetTable: 'detention_centers',
+                    name: 'detention_centers',
+                    innerJoin: {
+                        relation: 'posts_detention_centers',
+                        condition: ['posts_detention_centers.detention_center_id', '=', 'detention_centers.id']
+                    },
+                    select: ['posts_detention_centers.post_id as post_id'],
+                    whereIn: 'posts_detention_centers.post_id',
+                    whereInKey: 'post_id',
+                    orderBy: 'sort_order'
                 }
             };
 

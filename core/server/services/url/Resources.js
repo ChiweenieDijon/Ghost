@@ -37,14 +37,15 @@ const resourcesConfig = [
                 'feature_image',
                 'locale'
             ],
-            withRelated: ['tags', 'authors'],
+            withRelated: ['tags', 'authors', 'detention_centers'],
             withRelatedPrimary: {
                 primary_tag: 'tags',
                 primary_author: 'authors'
             },
             withRelatedFields: {
                 tags: ['tags.id', 'tags.slug'],
-                authors: ['users.id', 'users.slug']
+                authors: ['users.id', 'users.slug'],
+                detention_centers:['detention_centers._id', 'detention_centers.name']
             }
         },
         events: {
