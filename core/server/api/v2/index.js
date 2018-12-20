@@ -67,6 +67,10 @@ module.exports = {
         return shared.pipeline(require('./tags'), localUtils);
     },
 
+    get detentionCenters() {
+        return shared.pipeline(require('./detentionCenters'), localUtils);
+    },
+
     get users() {
         return shared.pipeline(require('./users'), localUtils);
     },

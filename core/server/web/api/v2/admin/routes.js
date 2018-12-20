@@ -80,6 +80,10 @@ module.exports = function apiRoutes() {
     router.put('/tags/:id', mw.authAdminApi, apiv2.http(apiv2.tags.edit));
     router.del('/tags/:id', mw.authAdminApi, apiv2.http(apiv2.tags.destroy));
 
+    // ## Detention Centers
+    router.get('/detentionCenters', mw.authAdminApi, apiv2.http(apiv2.detentionCenters.browse));
+    router.get('/detentionCenters/:id', mw.authAdminApi, apiv2.http(apiv2.detentionCenters.read));
+
     // ## Subscribers
     router.get('/subscribers', shared.middlewares.labs.subscribers, mw.authAdminApi, apiv2.http(apiv2.subscribers.browse));
     router.get('/subscribers/csv', shared.middlewares.labs.subscribers, mw.authAdminApi, apiv2.http(apiv2.subscribers.exportCSV));

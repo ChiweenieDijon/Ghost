@@ -1,8 +1,18 @@
 const models = require('../../models');
 const common = require('../../lib/common');
 const urlService = require('../../services/url');
-const allowedIncludes = ['created_by', 'updated_by', 'published_by', 'author', 'tags', 'authors', 'authors.roles'];
+const allowedIncludes = ['created_by', 'updated_by', 'published_by', 'author', 'tags', 'detentioncenters', 'authors', 'authors.roles'];
 const unsafeAttrs = ['author_id', 'status', 'authors'];
+
+const fixDc = function(frame) {
+    const wr = frame.options && frame.options.withRelated;
+    if(wr && wr.length) {
+        let i = wr.indexOf('detentioncenters');
+        if(i > -1) {
+            wr[i] = 'detention_centers';
+        }
+    }
+};
 
 module.exports = {
     docName: 'posts',
@@ -33,6 +43,7 @@ module.exports = {
             unsafeAttrs: unsafeAttrs
         },
         query(frame) {
+            fixDc(frame);
             return models.Post.findPage(frame.options);
         }
     },
@@ -66,6 +77,7 @@ module.exports = {
             unsafeAttrs: unsafeAttrs
         },
         query(frame) {
+            fixDc(frame);
             return models.Post.findOne(frame.data, frame.options)
                 .then((model) => {
                     if (!model) {
@@ -96,6 +108,7 @@ module.exports = {
             unsafeAttrs: unsafeAttrs
         },
         query(frame) {
+            fixDc(frame);
             return models.Post.add(frame.data.posts[0], frame.options)
                 .then((model) => {
                     if (model.get('status') !== 'published') {
@@ -129,6 +142,7 @@ module.exports = {
             unsafeAttrs: unsafeAttrs
         },
         query(frame) {
+            fixDc(frame);
             return models.Post.edit(frame.data.posts[0], frame.options)
                 .then((model) => {
                     if (model.get('status') === 'published' ||
@@ -172,6 +186,7 @@ module.exports = {
             unsafeAttrs: unsafeAttrs
         },
         query(frame) {
+            fixDc(frame);
             frame.options.require = true;
 
             return models.Post.destroy(frame.options)

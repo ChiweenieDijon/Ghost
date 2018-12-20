@@ -55,6 +55,10 @@ module.exports = {
         return require('./tags');
     },
 
+    get detentionCenters() {
+        return require('./detentionCenters');
+    },
+
     get users() {
         return require('./users');
     },
