@@ -17,6 +17,7 @@ const schedules = require('./schedules');
 const roles = require('./roles');
 const settings = require('./settings');
 const tags = require('./tags');
+const detentionCenters = require('./detentionCenters');
 const invites = require('./invites');
 const redirects = require('./redirects');
 const clients = require('./clients');
