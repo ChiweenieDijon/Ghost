@@ -1,12 +1,12 @@
 const Promise = require('bluebird'),
     {omit, merge} = require('lodash'),
-    pipeline = require('../lib/promise/pipeline'),
-    mail = require('../services/mail'),
-    urlService = require('../services/url'),
+    pipeline = require('../../lib/promise/pipeline'),
+    mail = require('../../services/mail'),
+    urlService = require('../../services/url'),
     localUtils = require('./utils'),
-    models = require('../models'),
-    common = require('../lib/common'),
-    security = require('../lib/security'),
+    models = require('../../models'),
+    common = require('../../lib/common'),
+    security = require('../../lib/security'),
     mailAPI = require('./mail'),
     settingsAPI = require('./settings'),
     docName = 'invites',
@@ -17,7 +17,13 @@ const invites = {
         let tasks;
 
         function modelQuery(options) {
-            return models.Invite.findPage(options);
+            return models.Invite.findPage(options)
+                .then(({data, meta}) => {
+                    return {
+                        invites: data.map(model => model.toJSON(options)),
+                        meta: meta
+                    };
+                });
         }
 
         tasks = [
@@ -163,7 +169,7 @@ const invites = {
                     return invite.destroy(options);
                 })
                 .then(() => {
-                    return options; 
+                    return options;
                 });
         }
 
@@ -205,7 +211,7 @@ const invites = {
                     }));
                 }
             }).then(() => {
-                return options; 
+                return options;
             });
         }
 

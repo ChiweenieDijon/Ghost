@@ -2,10 +2,10 @@
 // RESTful API for the Post resource
 const Promise = require('bluebird'),
     {omit, defaults} = require('lodash'),
-    pipeline = require('../lib/promise/pipeline'),
+    pipeline = require('../../lib/promise/pipeline'),
     localUtils = require('./utils'),
-    models = require('../models'),
-    common = require('../lib/common'),
+    models = require('../../models'),
+    common = require('../../lib/common'),
     docName = 'posts',
     /**
      * @deprecated: `author`, will be removed in Ghost 3.0
@@ -57,11 +57,19 @@ posts = {
          * @returns {Object} options
          */
         function modelQuery(options) {
+
             if(options && options.withRelated) {
                 //Theres some issue w/ include parameter being "detentionCenters" not translating to the withRelated
                 options.withRelated.push('detention_centers');
             }
-            return models.Post.findPage(options);
+
+            return models.Post.findPage(options)
+                .then(({data, meta}) => {
+                    return {
+                        posts: data.map(model => model.toJSON(options)),
+                        meta: meta
+                    };
+                });
         }
 
         // Push all of our tasks into a `tasks` array in the correct order

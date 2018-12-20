@@ -2,11 +2,11 @@
 // RESTful API for the User resource
 const Promise = require('bluebird'),
     _ = require('lodash'),
-    pipeline = require('../lib/promise/pipeline'),
+    pipeline = require('../../lib/promise/pipeline'),
     localUtils = require('./utils'),
-    canThis = require('../services/permissions').canThis,
-    models = require('../models'),
-    common = require('../lib/common'),
+    canThis = require('../../services/permissions').canThis,
+    models = require('../../models'),
+    common = require('../../lib/common'),
     docName = 'users',
     // TODO: implement created_by, updated_by
     allowedIncludes = ['count.posts', 'permissions', 'roles', 'roles.permissions'];
@@ -37,7 +37,13 @@ users = {
          * @returns {Object} options
          */
         function doQuery(options) {
-            return models.User.findPage(options);
+            return models.User.findPage(options)
+                .then(({data, meta}) => {
+                    return {
+                        users: data.map(post => post.toJSON(options)),
+                        meta: meta
+                    };
+                });
         }
 
         // Push all of our tasks into a `tasks` array in the correct order
