@@ -1,4 +1,4 @@
-const debug = require('ghost-ignition').debug('app');
+const debug = require('ghost-ignition').debug('web:parent');
 const express = require('express');
 const config = require('../config');
 const compress = require('compression');
@@ -16,6 +16,9 @@ module.exports = function setupParentApp(options = {}) {
     parentApp.enable('trust proxy');
 
     parentApp.use(shared.middlewares.logRequest);
+
+    // Register event emmiter on req/res to trigger cache invalidation webhook event
+    parentApp.use(shared.middlewares.emitEvents);
 
     // enabled gzip compression by default
     if (config.get('compress') !== false) {
@@ -35,12 +38,10 @@ module.exports = function setupParentApp(options = {}) {
     parentApp.use(shared.middlewares.ghostLocals);
 
     // Mount the  apps on the parentApp
+
     // API
     // @TODO: finish refactoring the API app
-    // @TODO: decide what to do with these paths - config defaults? config overrides?
-    parentApp.use('/ghost/api/v0.1/', require('./api/v0.1/app')());
-    parentApp.use('/ghost/api/v2/content/', require('./api/v2/content/app')());
-    parentApp.use('/ghost/api/v2/admin/', require('./api/v2/admin/app')());
+    parentApp.use('/ghost/api', require('./api')());
 
     // ADMIN
     parentApp.use('/ghost', require('./admin')());

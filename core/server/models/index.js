@@ -32,7 +32,11 @@ models = [
     'tag',
     'user',
     'invite',
-    'webhook'
+    'webhook',
+    'integration',
+    'api-key',
+    'mobiledoc-revision',
+    'member'
 ];
 
 function init() {

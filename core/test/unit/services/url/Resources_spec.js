@@ -68,7 +68,7 @@ describe('Unit: services/url/Resources', function () {
             created.tags.length.should.eql(testUtils.DataGenerator.forKnex.tags.length);
 
             // all mocked users are active
-            created.users.length.should.eql(testUtils.DataGenerator.forKnex.users.length);
+            created.authors.length.should.eql(testUtils.DataGenerator.forKnex.users.length);
             done();
         });
 
@@ -105,7 +105,6 @@ describe('Unit: services/url/Resources', function () {
                     'author',
                     'primary_author',
                     'primary_tag',
-                    'url'
                 ].sort());
 
                 should.exist(resources.getByIdAndType(options.eventData.type, options.eventData.id));
@@ -204,7 +203,6 @@ describe('Unit: services/url/Resources', function () {
                     'author',
                     'primary_author',
                     'primary_tag',
-                    'url'
                 ].sort());
 
                 should.exist(obj.tags);

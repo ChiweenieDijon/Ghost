@@ -6,19 +6,36 @@ const moment = require('moment-timezone'),
     cheerio = require('cheerio'),
     config = require('../../config'),
     settingsCache = require('../settings/cache'),
-    BASE_API_PATH = '/ghost/api/',
+    BASE_API_PATH = '/ghost/api',
     STATIC_IMAGE_URL_PREFIX = 'content/images';
 
 /**
  * Returns API path combining base path and path for specific version asked or deprecated by default
- * @param {string} version version for which to get the path(stable, actice, deprecated: content, admin), defaults to deprecated:content
+ * @param {Object} options {version} for which to get the path(stable, actice, deprecated),
+ * {type} admin|content: defaults to {version: deprecated, type: content}
  * @return {string} API Path for version
  */
-function getApiPath(version = 'deprecated', admin = false) {
+function getApiPath(options) {
+    const versionPath = getVersionPath(options);
+    return `${BASE_API_PATH}${versionPath}`;
+}
+
+/**
+ * Returns path containing only the path for the specific version asked or deprecated by default
+ * @param {Object} options {version} for which to get the path(stable, actice, deprecated),
+ * {type} admin|content: defaults to {version: deprecated, type: content}
+ * @return {string} API version path
+ */
+function getVersionPath(options) {
     const apiVersions = config.get('api:versions');
-    let versionType = apiVersions[version] || apiVersions.deprecated;
-    let versionPath = admin ? versionType.admin : versionType.content;
-    return `${BASE_API_PATH}${versionPath}/`;
+    let requestedVersion = options.version || 'deprecated';
+    let requestedVersionType = options.type || 'content';
+    let versionData = apiVersions[requestedVersion];
+    if (typeof versionData === 'string') {
+        versionData = apiVersions[versionData];
+    }
+    let versionPath = versionData[requestedVersionType];
+    return `/${versionPath}/`;
 }
 
 /**
@@ -313,7 +330,7 @@ function urlFor(context, data, absolute) {
         }
     } else if (context === 'api') {
         urlPath = getAdminUrl() || getBlogUrl();
-        let apiPath = getApiPath('deprecated');
+        let apiPath = getApiPath({version: 'deprecated', type: 'content'});
         // CASE: with or without protocol? If your blog url (or admin url) is configured to http, it's still possible that e.g. nginx allows both https+http.
         // So it depends how you serve your blog. The main focus here is to avoid cors problems.
         // @TODO: rename cors
@@ -324,7 +341,7 @@ function urlFor(context, data, absolute) {
         }
 
         if (data && data.version) {
-            apiPath = getApiPath(data.version, data.admin);
+            apiPath = getApiPath({version: data.version, type: data.versionType});
         }
 
         if (absolute) {
@@ -375,23 +392,20 @@ function redirectToAdmin(status, res, adminPath) {
  * absolute urls. Returns an object. The html string can be accessed by calling `html()` on
  * the variable that takes the result of this function
  */
-function makeAbsoluteUrls(html, siteUrl, itemUrl) {
-    var htmlContent = cheerio.load(html, {decodeEntities: false});
+function makeAbsoluteUrls(html, siteUrl, itemUrl, options = {assetsOnly: false}) {
+    const htmlContent = cheerio.load(html, {decodeEntities: false});
+    const staticImageUrlPrefixRegex = new RegExp(STATIC_IMAGE_URL_PREFIX);
 
     // convert relative resource urls to absolute
     ['href', 'src'].forEach(function forEach(attributeName) {
         htmlContent('[' + attributeName + ']').each(function each(ix, el) {
-            var baseUrl,
-                attributeValue,
-                parsed;
-
             el = htmlContent(el);
 
-            attributeValue = el.attr(attributeName);
+            let attributeValue = el.attr(attributeName);
 
             // if URL is absolute move on to the next element
             try {
-                parsed = url.parse(attributeValue);
+                const parsed = url.parse(attributeValue);
 
                 if (parsed.protocol) {
                     return;
@@ -409,11 +423,15 @@ function makeAbsoluteUrls(html, siteUrl, itemUrl) {
             if (attributeValue[0] === '#') {
                 return;
             }
-            // compose an absolute URL
 
+            if (options.assetsOnly && !attributeValue.match(staticImageUrlPrefixRegex)) {
+                return;
+            }
+
+            // compose an absolute URL
             // if the relative URL begins with a '/' use the blog URL (including sub-directory)
             // as the base URL, otherwise use the post's URL.
-            baseUrl = attributeValue[0] === '/' ? siteUrl : itemUrl;
+            const baseUrl = attributeValue[0] === '/' ? siteUrl : itemUrl;
             attributeValue = urlJoin(baseUrl, attributeValue);
             el.attr(attributeName, attributeValue);
         });
@@ -458,6 +476,9 @@ module.exports.redirectToAdmin = redirectToAdmin;
 module.exports.redirect301 = redirect301;
 module.exports.createUrl = createUrl;
 module.exports.deduplicateDoubleSlashes = deduplicateDoubleSlashes;
+module.exports.getApiPath = getApiPath;
+module.exports.getVersionPath = getVersionPath;
+module.exports.getBlogUrl = getBlogUrl;
 
 /**
  * If you request **any** image in Ghost, it get's served via

@@ -4,7 +4,6 @@ const path = require('path'),
     subscribeRouter = express.Router(),
     bodyParser = require('body-parser'),
     // Dirty requires
-    api = require('../../../api'),
     common = require('../../../lib/common'),
     urlService = require('../../../services/url'),
     validator = require('../../../data/validation').validator,
@@ -33,6 +32,8 @@ function _renderer(req, res) {
  */
 function errorHandler(error, req, res, next) {
     req.body.email = '';
+    req.body.subscribed_url = santizeUrl(req.body.subscribed_url);
+    req.body.subscribed_referrer = santizeUrl(req.body.subscribed_referrer);
 
     if (error.statusCode !== 404) {
         res.locals.error = error;
@@ -74,6 +75,8 @@ function handleSource(req, res, next) {
 
 function storeSubscriber(req, res, next) {
     req.body.status = 'subscribed';
+
+    const api = require('../../../api')[res.locals.apiVersion];
 
     if (_.isEmpty(req.body.email)) {
         return next(new common.errors.ValidationError({message: 'Email cannot be blank.'}));

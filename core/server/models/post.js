@@ -1,19 +1,20 @@
 // # Post Model
-var _ = require('lodash'),
-    uuid = require('uuid'),
-    moment = require('moment'),
-    Promise = require('bluebird'),
-    sequence = require('../lib/promise/sequence'),
-    common = require('../lib/common'),
-    htmlToText = require('html-to-text'),
-    ghostBookshelf = require('./base'),
-    config = require('../config'),
-    converters = require('../lib/mobiledoc/converters'),
-    urlService = require('../services/url'),
-    {urlFor, makeAbsoluteUrls} = require('../services/url/utils'),
-    relations = require('./relations'),
-    Post,
-    Posts;
+const _ = require('lodash');
+const uuid = require('uuid');
+const moment = require('moment');
+const Promise = require('bluebird');
+const sequence = require('../lib/promise/sequence');
+const common = require('../lib/common');
+const htmlToText = require('html-to-text');
+const ghostBookshelf = require('./base');
+const config = require('../config');
+const converters = require('../lib/mobiledoc/converters');
+const relations = require('./relations');
+const MOBILEDOC_REVISIONS_COUNT = 10;
+const ALL_STATUSES = ['published', 'draft', 'scheduled'];
+
+let Post;
+let Posts;
 
 Post = ghostBookshelf.Model.extend({
 
@@ -48,7 +49,7 @@ Post = ghostBookshelf.Model.extend({
         };
     },
 
-    relationships: ['tags', 'authors', 'detention_centers'],
+    relationships: ['tags', 'authors', 'mobiledoc_revisions', 'detention_centers'],
 
     // NOTE: look up object, not super nice, but was easy to implement
     relationshipBelongsTo: {
@@ -231,7 +232,8 @@ Post = ghostBookshelf.Model.extend({
             } else if (
                 publishedAtHasChanged &&
                 moment(publishedAt).isBefore(moment().add(config.get('times').cannotScheduleAPostBeforeInMinutes, 'minutes')) &&
-                !options.importing
+                !options.importing &&
+                (!options.context || !options.context.internal)
             ) {
                 return Promise.reject(new common.errors.ValidationError({
                     message: common.i18n.t('errors.models.post.expectedPublishedAtInFuture', {
@@ -350,6 +352,51 @@ Post = ghostBookshelf.Model.extend({
             });
         }
 
+        // CASE: Handle mobiledoc backups/revisions. This is a pure database feature.
+        if (model.hasChanged('mobiledoc') && !options.importing && !options.migrating) {
+            ops.push(function updateRevisions() {
+                return ghostBookshelf.model('MobiledocRevision')
+                    .findAll(Object.assign({
+                        filter: `post_id:${model.id}`,
+                        columns: ['id']
+                    }, _.pick(options, 'transacting')))
+                    .then((revisions) => {
+                        /**
+                         * Store prev + latest mobiledoc content, because we have decided against a migration, which
+                         * iterates over all posts and creates a copy of the current mobiledoc content.
+                         *
+                         * Reasons:
+                         *   - usually migrations for the post table are slow and error-prone
+                         *   - there is no need to create a copy for all posts now, because we only want to ensure
+                         *     that posts, which you are currently working on, are getting a content backup
+                         *   - no need to create revisions for existing published posts
+                         *
+                         * The feature is very minimal in the beginning. As soon as you update to this Ghost version,
+                         * you
+                         */
+                        if (!revisions.length && options.method !== 'insert') {
+                            model.set('mobiledoc_revisions', [{
+                                post_id: model.id,
+                                mobiledoc: model.previous('mobiledoc'),
+                                created_at_ts: Date.now() - 1
+                            }, {
+                                post_id: model.id,
+                                mobiledoc: model.get('mobiledoc'),
+                                created_at_ts: Date.now()
+                            }]);
+                        } else {
+                            const revisionsJSON = revisions.toJSON().slice(0, MOBILEDOC_REVISIONS_COUNT - 1);
+
+                            model.set('mobiledoc_revisions', revisionsJSON.concat([{
+                                post_id: model.id,
+                                mobiledoc: model.get('mobiledoc'),
+                                created_at_ts: Date.now()
+                            }]));
+                        }
+                    });
+            });
+        }
+
         return sequence(ops);
     },
 
@@ -393,12 +440,17 @@ Post = ghostBookshelf.Model.extend({
     fields: function fields() {
         return this.morphMany('AppField', 'relatable');
     },
+
+    mobiledoc_revisions() {
+        return this.hasMany('MobiledocRevision', 'post_id');
+    },
+
     /**
      * @NOTE:
      * If you are requesting models with `columns`, you try to only receive some fields of the model/s.
      * But the model layer is complex and needs specific fields in specific situations.
      *
-     * ### url generation
+     * ### url generation was removed but default columns need to be checked before removal
      *   - @TODO: with dynamic routing, we no longer need default columns to fetch
      *   - because with static routing Ghost generated the url on runtime and needed the following attributes:
      *     - `slug`: /:slug/
@@ -448,7 +500,9 @@ Post = ghostBookshelf.Model.extend({
             attrs = ghostBookshelf.Model.prototype.toJSON.call(this, options);
 
         attrs = this.formatsToJSON(attrs, options);
-        attrs.url = urlService.getUrlByResourceId(attrs.id);
+
+        // CASE: never expose the revisions
+        delete attrs.mobiledoc_revisions;
 
         // If the current column settings allow it...
         if (!options.columns || (options.columns && options.columns.indexOf('primary_tag') > -1)) {
@@ -457,28 +511,6 @@ Post = ghostBookshelf.Model.extend({
                 attrs.primary_tag = attrs.tags[0];
             } else {
                 attrs.primary_tag = null;
-            }
-        }
-
-        if (options.columns && !options.columns.includes('url')) {
-            delete attrs.url;
-        }
-
-        if (options && options.context && options.context.public && options.absolute_urls) {
-            if (attrs.feature_image) {
-                attrs.feature_image = urlFor('image', {image: attrs.feature_image}, true);
-            }
-            if (attrs.og_image) {
-                attrs.og_image = urlFor('image', {image: attrs.og_image}, true);
-            }
-            if (attrs.twitter_image) {
-                attrs.twitter_image = urlFor('image', {image: attrs.twitter_image}, true);
-            }
-            if (attrs.html) {
-                attrs.html = makeAbsoluteUrls(attrs.html, urlFor('home', true), attrs.url).html();
-            }
-            if (attrs.url) {
-                attrs.url = urlFor({relativeUrl: attrs.url}, true);
             }
         }
 
@@ -493,6 +525,51 @@ Post = ghostBookshelf.Model.extend({
         }
 
         return options.context && options.context.public ? 'page:false' : 'page:false+status:published';
+    },
+
+    /**
+     * You can pass an extra `status=VALUES` or "staticPages" field.
+     * Long-Term: We should deprecate these short cuts and force users to use the filter param.
+     */
+    extraFilters: function extraFilters(options) {
+        if (!options.staticPages && !options.status) {
+            return null;
+        }
+
+        let filter = null;
+
+        // CASE: "staticPages" is passed
+        if (options.staticPages && options.staticPages !== 'all') {
+            // CASE: convert string true/false to boolean
+            if (!_.isBoolean(options.staticPages)) {
+                options.staticPages = _.includes(['true', '1'], options.staticPages);
+            }
+
+            filter = `page:${options.staticPages}`;
+        } else if (options.staticPages === 'all') {
+            filter = 'page:[true, false]';
+        }
+
+        // CASE: "status" is passed, combine filters
+        if (options.status && options.status !== 'all') {
+            options.status = _.includes(ALL_STATUSES, options.status) ? options.status : 'published';
+
+            if (!filter) {
+                filter = `status:${options.status}`;
+            } else {
+                filter = `${filter}+status:${options.status}`;
+            }
+        } else if (options.status === 'all') {
+            if (!filter) {
+                filter = `status:[${ALL_STATUSES}]`;
+            } else {
+                filter = `${filter}+status:[${ALL_STATUSES}]`;
+            }
+        }
+
+        delete options.status;
+        delete options.staticPages;
+        return filter;
     }
 }, {
     allowedFormats: ['mobiledoc', 'html', 'plaintext'],
@@ -506,53 +583,26 @@ Post = ghostBookshelf.Model.extend({
         };
     },
 
-    orderDefaultRaw: function () {
-        return '' +
+    orderDefaultRaw: function (options) {
+        let order = '' +
             'CASE WHEN posts.status = \'scheduled\' THEN 1 ' +
             'WHEN posts.status = \'draft\' THEN 2 ' +
             'ELSE 3 END ASC,' +
             'CASE WHEN posts.status != \'draft\' THEN posts.published_at END DESC,' +
             'posts.updated_at DESC,' +
             'posts.id DESC';
-    },
 
-    /**
-     * @deprecated in favour of filter
-     */
-    processOptions: function processOptions(options) {
-        if (!options.staticPages && !options.status) {
-            return options;
+        // CASE: if the filter contains an `IN` operator, we should return the posts first, which match both tags
+        if (options.filter && options.filter.match(/(tags|tag):\s?\[.*\]/)) {
+            order = `(SELECT count(*) FROM posts_tags WHERE post_id = posts.id) DESC, ${order}`;
         }
 
-        // This is the only place that 'options.where' is set now
-        options.where = {statements: []};
-
-        // Step 4: Setup filters (where clauses)
-        if (options.staticPages && options.staticPages !== 'all') {
-            // convert string true/false to boolean
-            if (!_.isBoolean(options.staticPages)) {
-                options.staticPages = _.includes(['true', '1'], options.staticPages);
-            }
-            options.where.statements.push({prop: 'page', op: '=', value: options.staticPages});
-            delete options.staticPages;
-        } else if (options.staticPages === 'all') {
-            options.where.statements.push({prop: 'page', op: 'IN', value: [true, false]});
-            delete options.staticPages;
+        // CASE: if the filter contains an `IN` operator, we should return the posts first, which match both authors
+        if (options.filter && options.filter.match(/(authors|author):\s?\[.*\]/)) {
+            order = `(SELECT count(*) FROM posts_authors WHERE post_id = posts.id) DESC, ${order}`;
         }
 
-        // Unless `all` is passed as an option, filter on
-        // the status provided.
-        if (options.status && options.status !== 'all') {
-            // make sure that status is valid
-            options.status = _.includes(['published', 'draft', 'scheduled'], options.status) ? options.status : 'published';
-            options.where.statements.push({prop: 'status', op: '=', value: options.status});
-            delete options.status;
-        } else if (options.status === 'all') {
-            options.where.statements.push({prop: 'status', op: 'IN', value: ['published', 'draft', 'scheduled']});
-            delete options.status;
-        }
-
-        return options;
+        return order;
     },
 
     /**
@@ -590,7 +640,7 @@ Post = ghostBookshelf.Model.extend({
      */
     defaultRelations: function defaultRelations(methodName, options) {
         if (['edit', 'add'].indexOf(methodName) !== -1) {
-            options.withRelated = _.union(this.prototype.relationships, options.withRelated || []);
+            options.withRelated = _.union(['authors', 'tags','detention_centers'], options.withRelated || []);
         }
 
         return options;
@@ -715,10 +765,8 @@ Post = ghostBookshelf.Model.extend({
     },
 
     // NOTE: the `authors` extension is the parent of the post model. It also has a permissible function.
-    permissible: function permissible(postModel, action, context, unsafeAttrs, loadedPermissions, hasUserPermission, hasAppPermission, result) {
+    permissible: function permissible(postModel, action, context, unsafeAttrs, loadedPermissions, hasUserPermission, hasAppPermission) {
         let isContributor, isEdit, isAdd, isDestroy;
-
-        result = result || {};
 
         function isChanging(attr) {
             return unsafeAttrs[attr] && unsafeAttrs[attr] !== postModel.get(attr);
@@ -748,21 +796,18 @@ Post = ghostBookshelf.Model.extend({
             hasUserPermission = isDraft();
         }
 
+        const excludedAttrs = [];
         if (isContributor) {
             // Note: at the moment primary_tag is a computed field,
             // meaning we don't add it to this list. However, if the primary_tag/primary_author
             // ever becomes a db field rather than a computed field, add it to this list
             // TODO: once contributors are able to edit existing tags, this can be removed
             // @TODO: we need a concept for making a diff between incoming tags and existing tags
-            if (result.excludedAttrs) {
-                result.excludedAttrs.push('tags');
-            } else {
-                result.excludedAttrs = ['tags'];
-            }
+            excludedAttrs.push('tags');
         }
 
         if (hasUserPermission && hasAppPermission) {
-            return Promise.resolve(result);
+            return Promise.resolve({excludedAttrs});
         }
 
         return Promise.reject(new common.errors.NoPermissionError({

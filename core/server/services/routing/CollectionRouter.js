@@ -73,6 +73,9 @@ class CollectionRouter extends ParentRouter {
         // REGISTER: context middleware for entries
         this.router().use(this._prepareEntryContext.bind(this));
 
+        // REGISTER: page/post resource redirects
+        this.router().param('slug', this._respectDominantRouter.bind(this));
+
         // REGISTER: permalinks e.g. /:slug/, /podcast/:slug
         this.mountRoute(this.permalinks.getValue({withUrlOptions: true}), controllers.entry);
 
@@ -82,8 +85,6 @@ class CollectionRouter extends ParentRouter {
     /**
      * We attach context information of the router to the request.
      * By this we can e.g. access the router options in controllers.
-     *
-     * @TODO: Why do we need two context objects? O_O - refactor this out
      */
     _prepareEntriesContext(req, res, next) {
         res.routerOptions = {
@@ -93,6 +94,10 @@ class CollectionRouter extends ParentRouter {
             order: this.order,
             permalinks: this.permalinks.getValue({withUrlOptions: true}),
             resourceType: this.getResourceType(),
+            query: {
+                alias: 'posts',
+                resource: 'posts'
+            },
             context: this.context,
             frontPageTemplate: 'home',
             templates: this.templates,
