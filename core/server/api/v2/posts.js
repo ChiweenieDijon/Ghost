@@ -1,7 +1,7 @@
 const models = require('../../models');
 const common = require('../../lib/common');
 const urlService = require('../../services/url');
-const allowedIncludes = ['created_by', 'updated_by', 'published_by', 'author', 'tags', 'detentioncenters', 'authors', 'authors.roles'];
+const allowedIncludes = ['created_by', 'updated_by', 'published_by', 'author', 'tags', 'detentioncenters','detention_centers', 'authors', 'authors.roles'];
 const unsafeAttrs = ['author_id', 'status', 'authors'];
 
 const fixDc = function(frame) {
